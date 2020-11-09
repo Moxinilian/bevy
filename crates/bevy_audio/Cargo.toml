@@ -22,6 +22,7 @@ bevy_utils = { path = "../bevy_utils", version = "0.3.0" }
 
 # other
 anyhow = "1.0"
+crossbeam-channel = "0.4"
 rodio = { version = "0.13", default-features = false }
 parking_lot = "0.11.0"
 

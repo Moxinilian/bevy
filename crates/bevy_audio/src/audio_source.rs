@@ -17,11 +17,11 @@ impl AsRef<[u8]> for AudioSource {
     }
 }
 
-/// Loads mp3 files as [AudioSource] [Assets](bevy_asset::Assets)
+/// Loads mp3, flac, wav or ogg files as [AudioSource] [Assets](bevy_asset::Assets)
 #[derive(Default)]
-pub struct Mp3Loader;
+pub struct AudioFileLoader;
 
-impl AssetLoader for Mp3Loader {
+impl AssetLoader for AudioFileLoader {
     fn load(&self, bytes: &[u8], load_context: &mut LoadContext) -> BoxedFuture<Result<()>> {
         load_context.set_default_asset(LoadedAsset::new(AudioSource {
             bytes: bytes.into(),

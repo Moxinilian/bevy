@@ -1,6 +1,7 @@
 mod audio;
 mod audio_output;
 mod audio_source;
+mod located_source;
 
 pub use audio::*;
 pub use audio_output::*;
@@ -22,7 +23,7 @@ impl Plugin for AudioPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_thread_local_resource::<AudioOutput<AudioSource>>()
             .add_asset::<AudioSource>()
-            .init_asset_loader::<Mp3Loader>()
+            .init_asset_loader::<AudioFileLoader>()
             .init_resource::<Audio<AudioSource>>()
             .add_system_to_stage(
                 stage::POST_UPDATE,

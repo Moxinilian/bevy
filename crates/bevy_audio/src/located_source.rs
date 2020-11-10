@@ -6,16 +6,17 @@ struct SingleLocatedSource<S: rodio::Sample> {
     position: [f32; 3],
     attenuation_rate: f32,
     amplify: f32,
-    doppler: bool,
+    delay: bool,
     msg_channel: Receiver<SingleLocatedSourceMsg>,
 
-    curr_listener_pos: [f32; 3],
+    curr_sound_velocity: f32,
+    curr_listener_pos: Vec<[f32; 3]>,
     curr_delay_atten: Vec<(usize, f32)>,
 }
 
 enum SingleLocatedSourceMsg {
     Move([f32; 3]),
-    SetDoppler(bool),
+    ConsiderDelay(bool),
     SetAmplify(f32),
 }
 
@@ -53,7 +54,9 @@ impl<S: rodio::Sample> Iterator for LocatedSources<S> {
                         }
                     }
                     LocatedSourcesMsg::AddSource(source) => {
-                        if source.source.sample_rate() == self.sample_rate {
+                        if source.source.sample_rate() == self.sample_rate
+                            && source.source.channels() == 1
+                        {
                             source.update_listener(&self.output_channels, self.sound_velocity);
                             source.update();
                             self.sources.push(source);
@@ -132,17 +135,41 @@ where
     S: rodio::Sample,
 {
     fn update_listener(&mut self, new_pos: &[[f32; 3]], sound_velocity: f32) {
-        for i in 0..new_pos.len() {
-            let distance = euclidian_distance(&new_pos[i], &self.position);
-            let delay = if self.doppler {
-                (distance * sound_velocity * self.source.sample_rate() as f32) as usize
+        self.curr_listener_pos.clear();
+        self.curr_listener_pos.extend_from_slice(new_pos);
+        self.curr_sound_velocity = sound_velocity;
+        self.update_delay_atten();
+    }
+
+    fn update_delay_atten(&mut self) {
+        for i in 0..self.curr_listener_pos.len() {
+            let distance = euclidian_distance(&self.curr_listener_pos[i], &self.position);
+            let delay = if self.delay {
+                (distance * self.curr_sound_velocity * self.source.sample_rate() as f32) as usize
             } else {
                 0
             };
 
             let attenuation = self.amplify / (distance * self.attenuation_rate);
+
+            self.curr_delay_atten[i] = (delay, attenuation);
         }
     }
 
-    fn update(&mut self) {}
+    fn update(&mut self) {
+        while let Ok(msg) = self.msg_channel.try_recv() {
+            match msg {
+                SingleLocatedSourceMsg::Move(new_pos) => {
+                    self.position = new_pos;
+                    self.update_delay_atten();
+                }
+                SingleLocatedSourceMsg::SetAmplify(amplify) => {
+                    self.amplify = amplify;
+                }
+                SingleLocatedSourceMsg::ConsiderDelay(delay) => {
+                    self.delay = delay;
+                }
+            }
+        }
+    }
 }
